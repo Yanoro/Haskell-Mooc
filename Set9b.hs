@@ -47,7 +47,7 @@ type Col   = Int
 type Coord = (Row, Col)
 
 nextRow :: Coord -> Coord
-nextRow (i,j) = (i + 1, j)
+nextRow (i,j) = (i + 1, 1)
 
 nextCol :: Coord -> Coord
 nextCol (i,j) = (i, j + 1)
@@ -108,14 +108,13 @@ prettyPrint n lst = helper (sortBy compare lst) 1 1
         helper x currRow currCol
           | currRow > n || (currRow == n && currCol > n) = ""
           | x == [] || currRow /= row || currCol > n =
-            emptySpace (n - currCol) ++ "\n"
+            emptySpace (n - currCol + 1) ++ "\n"
             ++ helper x (currRow + 1) 1
           | currRow == row = emptySpace (col - currCol) ++ "Q"
                           ++ helper xs currRow (col + 1)
           | otherwise = '\n':(helper x (currRow + 1) 1)
                 where (row, col) = head x
                       xs = tail x
-
 
 --------------------------------------------------------------------------------
 -- Ex 3: The task in this exercise is to define the relations sameRow, sameCol,
@@ -205,7 +204,11 @@ type Candidate = Coord
 type Stack     = [Coord]
 
 danger :: Candidate -> Stack -> Bool
-danger = todo
+danger _ [] = False
+danger candidateCoord (c:cs) =
+  if foldr (\curr acc -> curr candidateCoord c || acc) False [sameRow, sameCol, sameDiag, sameAntidiag]
+  then True
+  else danger candidateCoord cs
 
 --------------------------------------------------------------------------------
 -- Ex 5: In this exercise, the task is to write a modified version of
@@ -240,7 +243,20 @@ danger = todo
 -- solution to this version. Any working solution is okay in this exercise.)
 
 prettyPrint2 :: Size -> Stack -> String
-prettyPrint2 = todo
+prettyPrint2 n queens = helper boardCoords
+  where boardCoords = [(x, y) | x <- [1..n], y <- [1..n]]
+        dangerZone = filter (\x -> danger x queens) boardCoords
+        getCurrChar coord
+          | elem coord queens = "Q"
+          | elem coord dangerZone = "#"
+          | otherwise = "."
+        helper [] = ""
+        helper (c:cs)
+          | let (_, y) = c, y == n = getCurrChar c ++ "\n" ++ helper cs
+          | otherwise = getCurrChar c ++ helper cs
+
+
+
 
 --------------------------------------------------------------------------------
 -- Ex 6: Now that we can check if a piece can be safely placed into a square in
@@ -285,7 +301,11 @@ prettyPrint2 = todo
 --     Q#######
 
 fixFirst :: Size -> Stack -> Maybe Stack
-fixFirst n s = todo
+fixFirst _ [] = Nothing
+fixFirst n (c:cs)
+  | fst c > n || snd c > n = Nothing
+  | not $ danger c cs = Just (c:cs)
+  | otherwise = fixFirst n ((nextCol c):cs)
 
 --------------------------------------------------------------------------------
 -- Ex 7: We need two helper functions for stack management.
@@ -307,10 +327,13 @@ fixFirst n s = todo
 -- Hint: Remember nextRow and nextCol? Use them!
 
 continue :: Stack -> Stack
-continue s = todo
+continue [] = []
+continue ((row, col):cs) = ((row + 1, 1)):((row, col):cs)
 
 backtrack :: Stack -> Stack
-backtrack s = todo
+backtrack [] = []
+backtrack (_:[]) = []
+backtrack (_:cs:css) = (nextCol cs):css
 
 --------------------------------------------------------------------------------
 -- Ex 8: Let's take a step. Our algorithm solves the problem (in a
@@ -379,7 +402,10 @@ backtrack s = todo
 --     step 8 [(6,1),(5,4),(4,2),(3,5),(2,3),(1,1)] ==> [(5,5),(4,2),(3,5),(2,3),(1,1)]
 
 step :: Size -> Stack -> Stack
-step = todo
+step n queens =
+  case fixFirst n queens of
+    Nothing -> backtrack queens
+    Just c -> continue c
 
 --------------------------------------------------------------------------------
 -- Ex 9: Let's solve our puzzle! The function finish takes a partial
@@ -394,7 +420,10 @@ step = todo
 -- solve the n queens problem.
 
 finish :: Size -> Stack -> Stack
-finish = todo
+finish _ [] = []
+finish n queens =
+  let next = step n queens in
+    if length next > n then drop 1 next else finish n next
 
 solve :: Size -> Stack
 solve n = finish n [(1,1)]
